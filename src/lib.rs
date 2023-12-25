@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use sstable::SSTable;
+
+mod sstable;
+
 pub struct LsmTree {
     memtable: HashMap<String, String>,
 }
@@ -24,4 +28,6 @@ impl LsmTree {
     pub fn delete(self) {
         unimplemented!()
     }
+
+    pub fn flush(&mut self) {}
 }

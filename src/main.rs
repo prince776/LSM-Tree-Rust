@@ -1,3 +1,5 @@
+use std::io;
+
 use lsm_tree_rust::LsmTree;
 
 fn main() {

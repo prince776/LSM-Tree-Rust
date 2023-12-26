@@ -1,8 +1,15 @@
-use std::fmt::Write;
+use std::io::Write;
 
 pub struct SSTable<Writer: Write> {
     writer: Writer,
     data: Vec<(String, String)>,
+}
+
+struct PersistFormat {
+    key_len: usize,
+    value_len: usize,
+    key: String,
+    value: String,
 }
 
 impl<Writer: Write> SSTable<Writer> {
@@ -23,26 +30,32 @@ impl<Writer: Write> SSTable<Writer> {
         self.data.push((key, value))
     }
 
-    fn write_table(self: &mut Self) -> Result<(), std::fmt::Error> {
+    pub fn write_table(self: &mut Self) -> Result<(), std::io::Error> {
         let writer = &mut self.writer;
 
         for (key, value) in &self.data {
-            let entry = format!("{key}{value}");
-            let entry_size = entry.len();
+            let entry = PersistFormat {
+                key_len: key.len(),
+                value_len: value.len(),
+                key: key.clone(),
+                value: value.clone(),
+            };
 
-            let entry = format!("{entry_size}{entry}");
-            writer.write_str(&entry)?;
+            writer.write(entry.serialize().as_slice())?;
         }
 
         return Ok(());
     }
+}
 
-    // Couldn't fight borrow checker to call this in write_table D:
-    // fn write_entry(&mut self, key: &String, value: &String) -> Result<(), std::fmt::Error> {
-    //     let entry = format!("{key}{value}");
-    //     let entry_size = entry.len();
-
-    //     let entry = format!("{entry_size}{entry}");
-    //     self.writer.write_str(&entry)
-    // }
+impl PersistFormat {
+    fn serialize(&self) -> Vec<u8> {
+        return [
+            &self.key_len.to_be_bytes(),
+            &self.value_len.to_be_bytes(),
+            self.key.as_bytes(),
+            self.value.as_bytes(),
+        ]
+        .concat();
+    }
 }

@@ -9,6 +9,7 @@ use sstable::SSTable;
 mod sstable;
 
 pub struct LsmTree {
+    op_count: i32,
     file_num: i32,
     memtable: HashMap<String, String>,
 }
@@ -16,12 +17,14 @@ pub struct LsmTree {
 impl LsmTree {
     pub fn new() -> LsmTree {
         return LsmTree {
+            op_count: 0,
             file_num: 0,
             memtable: HashMap::new(),
         };
     }
 
     const FILE_PREFIX: &'static str = "sstable_";
+    const FLUSH_THRESHOLD: i32 = 100;
 }
 
 impl LsmTree {
@@ -31,6 +34,12 @@ impl LsmTree {
 
     pub fn upsert(&mut self, key: String, value: String) {
         self.memtable.insert(key, value);
+        self.op_count += 1;
+
+        if self.op_count >= LsmTree::FLUSH_THRESHOLD {
+            self.flush().expect("Failed to flush data to disk");
+            self.op_count = 0;
+        }
     }
 
     pub fn delete(self) {

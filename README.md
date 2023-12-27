@@ -2,7 +2,7 @@
 
 This is a toy LSM Tree I made to practice rust.
 
-This LSM Tree is a key->value store where both are keys and values are strings.
+This LSM Tree is a key->value store where both, keys and values are strings.
 Supported operations are:
 
 ```

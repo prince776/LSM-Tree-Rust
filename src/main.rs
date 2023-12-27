@@ -3,7 +3,7 @@ use std::{fmt::format, io};
 use lsm_tree_rust::LsmTree;
 
 fn main() {
-    let mut db = LsmTree::new();
+    let mut db = LsmTree::new("sstable");
 
     let not_found_str = String::from("No Value Found!!");
     for i in 0..1000 {

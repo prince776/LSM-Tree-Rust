@@ -5,25 +5,23 @@ use std::{
 };
 
 use sstable::SSTable;
-
 mod sstable;
 
 pub struct LsmTree {
     op_count: i32,
-    file_num: i32,
     memtable: HashMap<String, String>,
+    sstable: SSTable,
 }
 
 impl LsmTree {
-    pub fn new() -> LsmTree {
+    pub fn new(summary_file_name: &str) -> LsmTree {
         return LsmTree {
             op_count: 0,
-            file_num: 0,
             memtable: HashMap::new(),
+            sstable: SSTable::new(summary_file_name),
         };
     }
 
-    const FILE_PREFIX: &'static str = "sstable_";
     const FLUSH_THRESHOLD: i32 = 100;
 }
 
@@ -50,23 +48,9 @@ impl LsmTree {
         let sstable_entries: Vec<_> = self.memtable.clone().into_iter().collect();
         self.memtable.clear();
 
-        let file_name = format!(
-            "{prefix}{num}",
-            prefix = LsmTree::FILE_PREFIX,
-            num = self.file_num
-        );
-        let file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(file_name)
-            .expect("Failed to open file");
-        let file_writer = BufWriter::new(file);
-
-        let mut sstable = SSTable::with_data(file_writer, sstable_entries);
-        sstable.write_table().expect("Failed to write sstable");
-
-        self.file_num += 1;
+        self.sstable
+            .write_table(sstable_entries)
+            .expect("Failed to write sstable data file");
         return Ok(());
     }
 }

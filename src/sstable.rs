@@ -19,10 +19,12 @@ struct PersistFormat {
 
 impl SSTable {
     pub fn new(summary_file_name: &str) -> SSTable {
+        let summary = SSTableSummary::from_file(summary_file_name);
+        let data_files_count = summary.existing_data_files_count;
         SSTable {
-            summary: SSTableSummary::from_file(summary_file_name),
+            summary: summary,
             summary_file_name: String::from(summary_file_name),
-            data_files_count: 0,
+            data_files_count: data_files_count,
         }
     }
 }
@@ -55,9 +57,11 @@ impl SSTable {
             entry_offset += entry.len() as i64;
         }
 
+        self.data_files_count += 1;
+
+        self.summary.existing_data_files_count = self.data_files_count;
         self.summary.flush(&self.summary_file_name)?;
 
-        self.data_files_count += 1;
         return Ok(());
     }
 

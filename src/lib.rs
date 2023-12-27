@@ -25,6 +25,13 @@ impl LsmTree {
     const FLUSH_THRESHOLD: i32 = 100;
 }
 
+impl Drop for LsmTree {
+    fn drop(&mut self) {
+        self.flush()
+            .expect("Failed to flush before dropping lsm tree instance");
+    }
+}
+
 impl LsmTree {
     pub fn get(&self, key: &str) -> Option<String> {
         let res = self.memtable.get(key);
@@ -50,6 +57,10 @@ impl LsmTree {
     }
 
     pub fn flush(&mut self) -> Result<(), io::Error> {
+        if self.memtable.len() == 0 {
+            return Ok(());
+        }
+
         let sstable_entries: Vec<_> = self.memtable.clone().into_iter().collect();
         self.memtable.clear();
 

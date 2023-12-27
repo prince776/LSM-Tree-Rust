@@ -1,11 +1,15 @@
 mod sstable_summary;
 use self::sstable_summary::SSTableSummary;
-use std::{fs::OpenOptions, io::Write, mem::size_of};
+use std::{
+    fs::OpenOptions,
+    io::{Read, Seek, Write},
+    mem::size_of,
+};
 
 pub struct SSTable {
     summary: SSTableSummary,
     summary_file_name: String,
-    data_files_count: i32,
+    data_files_count: i64,
 }
 
 struct PersistFormat {
@@ -24,8 +28,12 @@ impl SSTable {
 }
 
 impl SSTable {
+    fn get_data_file_name(&self, file_num: i64) -> String {
+        format!("{}_data_{}", self.summary_file_name, file_num)
+    }
+
     pub fn write_table(&mut self, data: Vec<(String, String)>) -> Result<(), std::io::Error> {
-        let data_file_name = format!("{}_data_{}", self.summary_file_name, self.data_files_count);
+        let data_file_name = self.get_data_file_name(self.data_files_count);
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -33,13 +41,46 @@ impl SSTable {
             .open(data_file_name)
             .expect("Failed to open file");
 
+        // Entry offset is like: first 30 bits represent offset in file, and the remaining top bits
+        // represent the data file number. Could make a wrapper for this but meh.
+        let mut entry_offset: i64 = (1 << 30) * self.data_files_count;
+
         for (key, value) in data {
-            let entry = PersistFormat::new(key, value);
-            file.write(entry.serialize().as_slice())?;
+            let key_clone = key.clone();
+            let entry = PersistFormat::new(key, value).serialize();
+            file.write(entry.as_slice())?;
+
+            self.summary.upsert(key_clone, entry_offset);
+
+            entry_offset += entry.len() as i64;
         }
+
+        self.summary.flush(&self.summary_file_name)?;
 
         self.data_files_count += 1;
         return Ok(());
+    }
+
+    pub fn get(&self, key: &str) -> Option<String> {
+        let entry_offset = self.summary.get_entry_offset(key)?;
+
+        let file_num = entry_offset >> 30;
+        let file_offset = (entry_offset % (1 << 30)) as usize;
+
+        // Ideally this should be cached to some degree.
+        let data_file_name = self.get_data_file_name(file_num);
+        let mut file = OpenOptions::new()
+            .read(true)
+            .open(data_file_name)
+            .expect("Failed to open data file that should exist");
+
+        let mut buf: Vec<u8> = Vec::new();
+        file.read_to_end(&mut buf)
+            .expect("Failed to read data file");
+
+        let (_, entry) = PersistFormat::deserialize(&buf[file_offset..]);
+
+        return Some(entry.value);
     }
 }
 
@@ -76,7 +117,7 @@ impl PersistFormat {
         let key = String::from_utf8(buf[idx..idx + key_len].to_vec()).unwrap();
         idx += key_len;
 
-        let value = String::from_utf8(buf[idx..idx + key_len].to_vec()).unwrap();
+        let value = String::from_utf8(buf[idx..idx + value_len].to_vec()).unwrap();
         idx += value_len;
 
         return (idx, PersistFormat { key, value });

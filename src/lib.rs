@@ -26,8 +26,13 @@ impl LsmTree {
 }
 
 impl LsmTree {
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.memtable.get(key)
+    pub fn get(&self, key: &str) -> Option<String> {
+        let res = self.memtable.get(key);
+        if let Some(val) = res {
+            return Some(val.clone());
+        }
+
+        return self.sstable.get(key);
     }
 
     pub fn upsert(&mut self, key: String, value: String) {

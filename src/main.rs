@@ -12,4 +12,9 @@ fn main() {
 
         db.upsert(k, v);
     }
+
+    println!(
+        "Value for Key100: {}",
+        db.get("Key100").unwrap_or(not_found_str)
+    );
 }

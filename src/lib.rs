@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs::{File, OpenOptions},
     io::{self, BufWriter},
 };
@@ -9,7 +9,7 @@ mod sstable;
 
 pub struct LsmTree {
     op_count: i32,
-    memtable: HashMap<String, String>,
+    memtable: BTreeMap<String, String>,
     sstable: SSTable,
 }
 
@@ -17,7 +17,7 @@ impl LsmTree {
     pub fn new(summary_file_name: &str) -> LsmTree {
         return LsmTree {
             op_count: 0,
-            memtable: HashMap::new(),
+            memtable: BTreeMap::new(),
             sstable: SSTable::new(summary_file_name),
         };
     }
